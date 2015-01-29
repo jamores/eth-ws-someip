@@ -60,7 +60,7 @@ function field_msgid(subtree,buf)
                         ":"..tohex(band(msg_id_uint,0x7fff),4)..")")
 
     msg_id:add("service_id : "..tohex(buf(0,2):uint(),4))
-    if band(buf(0,2):uint(),0x01) == 0 then
+    if band(buf(0,2):uint(),0x80) == 0 then
         msg_id:add("method_id : "..tohex(band(msg_id_uint,0x7fff),4))
     else
         msg_id:add("event_id : "..tohex(band(msg_id_uint,0x7fff),4))
