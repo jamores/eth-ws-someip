@@ -121,12 +121,14 @@ end
 
 -- initialization routine
 function p_someip.init()
-    -- register protocol
+    -- register protocol (some ports arount 30490, that is referenced on Specs)
     local udp_dissector_table = DissectorTable.get("udp.port")
+    local tcp_dissector_table = DissectorTable.get("tcp.port")
     
     -- Register dissector to multiple ports
     for i,port in ipairs{30490,30491,30501,30502,30503,30504} do
         udp_dissector_table:add(port,p_someip)
+        tcp_dissector_table:add(port,p_someip)
     end
 end
 
