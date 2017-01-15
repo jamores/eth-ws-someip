@@ -33,9 +33,12 @@ function p_sd_ents.dissector(buf,pinfo,root)
     local e_len = buf(offset,4):uint()
     offset = offset + 4
 
-    -- parse entries
-    while offset < e_len do
-        offset = offset + parse_entries(root,buf(offset,e_len))
+    -- parse entries  (NOTE : some extra variables to easen understanding)
+    local e_len_parsed = 0
+    while e_len_parsed < e_len do
+        local i_parse = parse_entries(root,buf(offset,(e_len-e_len_parsed)))
+        e_len_parsed = e_len_parsed + i_parse
+        offset = offset + i_parse
     end
 end
 
