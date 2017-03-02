@@ -79,8 +79,8 @@ function field_reqid(subtree,buf)
 end
 
 function field_data(subtree,buf)
-	local pl_len = buf:len() - 16
-	local pl_id_uint = buf(16,pl_len)
+    local pl_len = buf:len() - 16
+    local pl_id_uint = buf(16,pl_len)
     pl_id = subtree:add(f_pl_id,buf(16,pl_len))
     req_id:add("Data : "..pl_id_uint)
 end
