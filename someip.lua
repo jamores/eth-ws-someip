@@ -1,6 +1,7 @@
 -- File : someip.lua
 -- Who  : Jose Amores
 -- What : SOMEIP dissector
+-- Modified: Carlos Vinolo -- Added Payload field for Notifications/RPC
 
 -- bitwise ops helpers
 local band,bor = bit.band,bit.bor
@@ -19,6 +20,7 @@ local f_pv          = ProtoField.uint8("someip.protoversion","ProtocolVersion",b
 local f_iv          = ProtoField.uint8("someip.ifaceversion","InterfaceVersion",base.HEX)
 local f_mt          = ProtoField.uint8("someip.msgtype","MessageType",base.HEX)
 local f_rc          = ProtoField.uint8("someip.returncode","ReturnCode",base.HEX)
+local f_pl_id       = ProtoField.uint8("someip.payload","Payload",base.HEX)
 
 local msg_types = {
     [0]     = "REQUEST",                -- 0x00
@@ -46,7 +48,7 @@ local ret_codes = {
     [10]    = "E_WRONG_MESSAGE_TYPE"
 }
 
-p_someip.fields = {f_msg_id,f_len,f_req_id,f_pv,f_iv,f_mt,f_rc}
+p_someip.fields = {f_msg_id,f_len,f_req_id,f_pv,f_iv,f_mt,f_rc,f_pl_id}
 
 p_someip.prefs["udp_port"] = Pref.uint("UDP Port",30490,"UDP Port for SOME/IP")
 
@@ -74,6 +76,13 @@ function field_reqid(subtree,buf)
 
     req_id:add("client_id : "..tohex(rshift(req_id_uint,16),4))
     req_id:add("session_id : "..tohex(req_id_uint,4))
+end
+
+function field_data(subtree,buf)
+	local pl_len = buf:len() - 16
+	local pl_id_uint = buf(16,pl_len)
+    pl_id = subtree:add(f_pl_id,buf(16,pl_len))
+    req_id:add("Data : "..pl_id_uint)
 end
 
 -- dissection function
@@ -112,6 +121,9 @@ function p_someip.dissector(buf,pinfo,root)
     end
 
     -- SD payload --
+	if (buf(0,4):uint() ~= 0xffff8100) then
+	field_data(subtree,buf)
+	end
     --
     if (buf(0,4):uint() == 0xffff8100) and (buf:len() > SOMEIP_SD_OFFSET)  then
         Dissector.get("sd"):call(buf(SOMEIP_SD_OFFSET):tvb(),pinfo,root)
