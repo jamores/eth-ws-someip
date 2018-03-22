@@ -15,5 +15,6 @@ If you prefer not to directly copy your dissector files there, this is the optio
   - $ ln -s \<repo_location>/sd_entries.lua ~/.config/wireshark/plugins/
   - $ ln -s \<repo_location>/sd_options.lua ~/.config/wireshark/plugins/
 
-## VLAN configuration (linux)
-TODO
+##  Extras
+In case you need a nice python-based environment to quickly prototype a SOME/IP-SD host, design a SOME/IP test suite or just 
+generate traffic, check this other project out : [eth-scapy_someip](https://github.com/jamores/eth-scapy-someip)
