@@ -12,9 +12,9 @@ p_sd = Proto("sd","SD")
 
 local f_flags       = ProtoField.uint8("sd.flags","Flags",base.HEX)
 local f_res         = ProtoField.uint24("sd.res","Reserved",base.HEX)
-local f_ents_len    = ProtoField.uint32("sd.len_ent","LenghtEntries",base.HEX)
+local f_ents_len    = ProtoField.uint32("sd.len_ent","LengthEntries",base.HEX)
 local f_ents        = ProtoField.bytes("sd.ent","EntriesArray")
-local f_opts_len    = ProtoField.uint32("sd.len_opt","LenghtOptions",base.HEX)
+local f_opts_len    = ProtoField.uint32("sd.len_opt","LengthOptions",base.HEX)
 local f_opts        = ProtoField.bytes("sd.opt","OptionsArray")
 
 p_sd.fields = {f_flags,f_res,f_ents_len,f_ents,f_opts_len,f_opts}
@@ -33,7 +33,7 @@ function p_sd.dissector(buf,pinfo,root)
     subtree:add(f_flags,buf(offset,1))
     offset = offset+1
     -- Reserved
-    subtree:add(f_res,buf(offset,4))
+    subtree:add(f_res,buf(offset,3))
     offset = offset+3
 
     -- Entries length
