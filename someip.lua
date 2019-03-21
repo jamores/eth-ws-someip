@@ -20,6 +20,13 @@ local f_iv          = ProtoField.uint8("someip.ifaceversion","InterfaceVersion",
 local f_mt          = ProtoField.uint8("someip.msgtype","MessageType",base.HEX)
 local f_rc          = ProtoField.uint8("someip.returncode","ReturnCode",base.HEX)
 
+-- SOME/IP-TP
+local f_offset      = ProtoField.uint32("someip.tp_offset","Offset",base.DEC,nil,0xfffffff0)
+local f_reserved    = ProtoField.uint8("someip.tp_reserved","Reserved",base.HEX,nil,0x0e)
+local f_more_seg    = ProtoField.uint8("someip.tp_more_segments","More Segments",base.DEC,nil,0x01)
+
+
+
 local msg_types = {
     [0]     = "REQUEST",                -- 0x00
     [1]     = "REQUEST_NO_RETURN",      -- 0x01
@@ -30,7 +37,19 @@ local msg_types = {
     [128]   = "RESPONSE",               -- 0x80
     [129]   = "ERROR",                  -- 0x81
     [192]   = "RESPONSE_ACK",           -- 0xc0
-    [193]   = "ERROR_ACK"               -- 0xc1
+    [193]   = "ERROR_ACK",              -- 0xc1
+
+    -- SOME/IP - Transport Protocol (SOME/IP-TP)
+    [32]    = "REQUEST Segment",                -- 0x20
+    [33]    = "REQUEST_NO_RETURN Segment",      -- 0x21
+    [34]    = "NOTIFICATION Segment",           -- 0x22
+    [96]    = "REQUEST_ACK Segment",            -- 0x60
+    [97]    = "REQUEST_NO_RETURN_ACK Segment",  -- 0x61
+    [98]    = "NOTIFICATION_ACK Segment",       -- 0x62
+    [160]   = "RESPONSE Segment",               -- 0xa0
+    [161]   = "ERROR Segment",                  -- 0xa1
+    [224]   = "RESPONSE_ACK Segment",           -- 0xe0
+    [225]   = "ERROR_ACK Segment"               -- 0xe1
 }
 local ret_codes = {
     [0]     = "E_OK",
@@ -46,7 +65,7 @@ local ret_codes = {
     [10]    = "E_WRONG_MESSAGE_TYPE"
 }
 
-p_someip.fields = {f_msg_id,f_len,f_req_id,f_pv,f_iv,f_mt,f_rc}
+p_someip.fields = {f_msg_id,f_len,f_req_id,f_pv,f_iv,f_mt,f_rc, f_offset, f_reserved, f_more_seg}
 
 p_someip.prefs["udp_port"] = Pref.uint("UDP Port",30490,"UDP Port for SOME/IP")
 
@@ -69,7 +88,7 @@ end
 function field_reqid(subtree,buf)
     req_id = subtree:add(f_req_id,buf(8,4))
     local req_id_uint = buf(8,4):uint()
-    
+
     req_id:append_text(" ("..buf(8,2)..":"..buf(10,2)..")")
 
     req_id:add("client_id : "..tohex(rshift(req_id_uint,16),4))
@@ -111,6 +130,21 @@ function p_someip.dissector(buf,pinfo,root)
         rcode:append_text(" (" .. ret_codes[buf(15,1):uint()] ..")")
     end
 
+    -- SOME/IP TP
+    if band(buf(14,1):uint(),0x20) ~= 0 then
+        subtree:add(f_offset,buf(16,4))
+        local tp_offset = band(buf(16,4):uint(), 0xfffffff0)
+        subtree:add(f_reserved,buf(19,1))
+        local more_seg = subtree:add(f_more_seg,buf(19,1))
+        if band(buf(19,1):uint(),0x01) == 0 then
+            more_seg:append_text(" (Last Segment)")
+            pinfo.cols.info = "TP Segment Offset=" .. tp_offset .. " More=False"
+        else
+            more_seg:append_text(" (Another segment follows)")
+            pinfo.cols.info = "TP Segment Offset=" .. tp_offset .. " More=True"
+        end
+    end
+
     -- SD payload --
     --
     if (buf(0,4):uint() == 0xffff8100) and (buf:len() > SOMEIP_SD_OFFSET)  then
@@ -124,7 +158,7 @@ function p_someip.init()
     -- register protocol (some ports arount 30490, that is referenced on Specs)
     local udp_dissector_table = DissectorTable.get("udp.port")
     local tcp_dissector_table = DissectorTable.get("tcp.port")
-    
+
     -- Register dissector to multiple ports
     for i,port in ipairs{30490,30491,30501,30502,30503,30504} do
         udp_dissector_table:add(port,p_someip)
