@@ -129,6 +129,11 @@ function parse_options(subtree,buf)
         end
 
         -- Port
+        if o_l4[l4_u8] == "TCP" then
+            DissectorTable.get("tcp.port"):add(buf(offset,2):uint(),Dissector.get("someip"))
+        elseif o_l4[l4_u8] == "UDP" then
+            DissectorTable.get("udp.port"):add(buf(offset,2):uint(),Dissector.get("someip"))
+        end
         o_subtree:add(f_o_port,buf(offset,2))
         offset = offset + 2
     end

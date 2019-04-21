@@ -149,6 +149,8 @@ function p_someip.dissector(buf,pinfo,root)
     --
     if (buf(0,4):uint() == 0xffff8100) and (buf:len() > SOMEIP_SD_OFFSET)  then
         Dissector.get("sd"):call(buf(SOMEIP_SD_OFFSET):tvb(),pinfo,root)
+    elseif (buf:len() > SOMEIP_LENGTH) then
+        Dissector.get("data"):call(buf(SOMEIP_LENGTH):tvb(),pinfo,root)
     end
 
 end
