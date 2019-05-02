@@ -79,7 +79,7 @@ function field_msgid(subtree,buf)
                         ":"..tohex(band(msg_id_uint,0x7fff),4)..")")
 
     msg_id:add("service_id : "..tohex(buf(0,2):uint(),4))
-    if band(buf(0,2):uint(),0x80) == 0 then
+    if band(buf(2,1):uint(),0x80) == 0 then
         msg_id:add("method_id : "..tohex(band(msg_id_uint,0x7fff),4))
     else
         msg_id:add("event_id : "..tohex(band(msg_id_uint,0x7fff),4))
@@ -149,6 +149,8 @@ function p_someip.dissector(buf,pinfo,root)
     --
     if (buf(0,4):uint() == 0xffff8100) and (buf:len() > SOMEIP_SD_OFFSET)  then
         Dissector.get("sd"):call(buf(SOMEIP_SD_OFFSET):tvb(),pinfo,root)
+    elseif (buf:len() > SOMEIP_LENGTH) then
+        Dissector.get("data"):call(buf(SOMEIP_LENGTH):tvb(),pinfo,root)
     end
 
 end

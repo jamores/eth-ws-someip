@@ -10,14 +10,18 @@ local tohex = bit.tohex
 -- SD protocol
 p_sd = Proto("sd","SD")
 
-local f_flags       = ProtoField.uint8("sd.flags","Flags",base.HEX)
-local f_res         = ProtoField.uint24("sd.res","Reserved",base.HEX)
-local f_ents_len    = ProtoField.uint32("sd.len_ent","LengthEntries",base.HEX)
-local f_ents        = ProtoField.bytes("sd.ent","EntriesArray")
-local f_opts_len    = ProtoField.uint32("sd.len_opt","LengthOptions",base.HEX)
-local f_opts        = ProtoField.bytes("sd.opt","OptionsArray")
+local f_flags           = ProtoField.uint8("sd.flags","Flags",base.HEX)
+local f_flags_reboot    = ProtoField.bool("sd.flags.reboot", "Reboot Flag")
+local f_flags_unicast   = ProtoField.bool("sd.flags.unicast", "Unicast Flag")
+local f_flags_init_data = ProtoField.bool("sd.flags.init_data", "Explicit Initial Data Control Flag")
 
-p_sd.fields = {f_flags,f_res,f_ents_len,f_ents,f_opts_len,f_opts}
+local f_res      = ProtoField.uint24("sd.res","Reserved",base.HEX)
+local f_ents_len = ProtoField.uint32("sd.len_ent","LengthEntries",base.HEX)
+local f_ents     = ProtoField.bytes("sd.ent","EntriesArray")
+local f_opts_len = ProtoField.uint32("sd.len_opt","LengthOptions",base.HEX)
+local f_opts     = ProtoField.bytes("sd.opt","OptionsArray")
+
+p_sd.fields = {f_flags,f_flags_reboot,f_flags_unicast,f_flags_init_data,f_res,f_ents_len,f_ents,f_opts_len,f_opts}
 
 function p_sd.dissector(buf,pinfo,root)
     pinfo.cols.protocol = "SOME-IP/SD"
@@ -30,8 +34,13 @@ function p_sd.dissector(buf,pinfo,root)
     local offset = 0
     
     -- Flags
-    subtree:add(f_flags,buf(offset,1))
+    flags_tree = subtree:add(f_flags,buf(offset,1))
+    flags_tree:add(f_flags_reboot,buf(0,1):bitfield(0,1))
+    flags_tree:add(f_flags_unicast,buf(0,1):bitfield(1,1))
+    flags_tree:add(f_flags_init_data,buf(0,1):bitfield(2,1))
+
     offset = offset+1
+
     -- Reserved
     subtree:add(f_res,buf(offset,3))
     offset = offset+3

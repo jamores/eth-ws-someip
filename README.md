@@ -1,5 +1,5 @@
 # eth-ws-someip
-Automotive Ethernet SOME/IP-SD Wireshark LUA dissectors (Autosar 4.2)
+Automotive Ethernet SOME/IP and SOME/IP-SD Wireshark LUA dissectors (Autosar CP & AP, Foundation 1.5.0)
 
 ## Installation
 In order to use this LUA plugins, they need to be added to Wireshark's 'personal plugins' folder.

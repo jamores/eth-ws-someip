@@ -14,8 +14,11 @@ local f_e_inst_id   = ProtoField.uint16("sd.e.inst_id","Instance ID",base.HEX)
 local f_e_v_major   = ProtoField.uint8("sd.e.v_major","MajorVersion",base.HEX)
 local f_e_ttl       = ProtoField.uint24("sd.e.ttl","TTL",base.DEC)
 local f_e_v_minor   = ProtoField.uint32("sd.e.v_minor","MinorVersion",base.HEX)
-local f_e_cnt       = ProtoField.uint8("sd.e.cnt","Counter",base.DEC)
-local f_e_egrp_id  = ProtoField.uint8("sd.e.egrp_id","EventGroup_ID",base.HEX)
+local f_e_reserved  = ProtoField.uint8("sd.e.reserved","Reserved",base.HEX)
+local f_e_init_req  = ProtoField.bool("sd.e.init_req","Initial Data Requested Flag")
+local f_e_reserved2 = ProtoField.uint8("sd.e.reserved2","Reserved2",base.HEX,nil,0x07)
+local f_e_cnt       = ProtoField.uint8("sd.e.cnt","Counter",base.DEC,nil,0x0f)
+local f_e_egrp_id   = ProtoField.uint8("sd.e.egrp_id","EventGroup_ID",base.HEX)
 
 local e_types = {
     [0] = "FIND_SERVICE",   -- 0x00
@@ -24,7 +27,7 @@ local e_types = {
     [7] = "SUBSCRIBE_ACK"   -- 0x07
 }
 
-p_sd_ents.fields = {f_e_type,f_e_o1_i,f_e_o2_i,f_e_o1_n,f_e_o2_n,f_e_srv_id,f_e_inst_id,f_e_v_major,f_e_ttl,f_e_v_minor,f_e_cnt,f_e_egrp_id}
+p_sd_ents.fields = {f_e_type,f_e_o1_i,f_e_o2_i,f_e_o1_n,f_e_o2_n,f_e_srv_id,f_e_inst_id,f_e_v_major,f_e_ttl,f_e_v_minor,f_e_reserved,f_e_init_req,f_e_reserved2,f_e_cnt,f_e_egrp_id}
 
 function p_sd_ents.dissector(buf,pinfo,root)
     local offset = 0
@@ -103,8 +106,13 @@ function parse_entries(subtree,buf)
         offset = offset + 4
     else
         -- EVENTGROUP
-        -- Counter
-        offset = offset +1 -- skip reserved
+        -- Reserved
+        e_subtree:add(f_e_reserved,buf(offset,1))
+        offset = offset +1
+
+        --Initial Data Requested Flag && Reserved2 && Counter
+        e_subtree:add(f_e_init_req,buf(offset,1):bitfield(0,1))
+        e_subtree:add(f_e_reserved2,buf(offset,1))
         e_subtree:add(f_e_cnt,buf(offset,1))
         offset = offset + 1
 
@@ -115,4 +123,3 @@ function parse_entries(subtree,buf)
 
     return(offset)
 end
-
