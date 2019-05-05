@@ -8,7 +8,7 @@ local lshift, rshift = bit.lshift,bit.rshift
 local tohex = bit.tohex
 
 -- SOME/IP protocol
-local SOMEIP_SD_OFFSET = 16
+local SOMEIP_LENGTH = 16
 
 p_someip = Proto("someip","SOME/IP")
 
@@ -29,27 +29,27 @@ local f_more_seg    = ProtoField.uint8("someip.tp_more_segments","More Segments"
 
 local msg_types = {
     [0]     = "REQUEST",                -- 0x00
-    [1]     = "REQUEST_NO_RETURN",      -- 0x01
+    [1]     = "REQUEST NO RETURN",      -- 0x01
     [2]     = "NOTIFICATION",           -- 0x02
-    [64]    = "REQUEST_ACK",            -- 0x40
-    [65]    = "REQUEST_NO_RETURN_ACK",  -- 0x41
-    [66]    = "NOTIFICATION_ACK",       -- 0x42
+    [64]    = "REQUEST ACK",            -- 0x40
+    [65]    = "REQUEST NO RETURN ACK",  -- 0x41
+    [66]    = "NOTIFICATION ACK",       -- 0x42
     [128]   = "RESPONSE",               -- 0x80
     [129]   = "ERROR",                  -- 0x81
-    [192]   = "RESPONSE_ACK",           -- 0xc0
-    [193]   = "ERROR_ACK",              -- 0xc1
+    [192]   = "RESPONSE ACK",           -- 0xc0
+    [193]   = "ERROR ACK",              -- 0xc1
 
     -- SOME/IP - Transport Protocol (SOME/IP-TP)
     [32]    = "REQUEST Segment",                -- 0x20
-    [33]    = "REQUEST_NO_RETURN Segment",      -- 0x21
+    [33]    = "REQUEST NO RETURN Segment",      -- 0x21
     [34]    = "NOTIFICATION Segment",           -- 0x22
-    [96]    = "REQUEST_ACK Segment",            -- 0x60
-    [97]    = "REQUEST_NO_RETURN_ACK Segment",  -- 0x61
-    [98]    = "NOTIFICATION_ACK Segment",       -- 0x62
+    [96]    = "REQUEST ACK Segment",            -- 0x60
+    [97]    = "REQUEST NO RETURN ACK Segment",  -- 0x61
+    [98]    = "NOTIFICATION ACK Segment",       -- 0x62
     [160]   = "RESPONSE Segment",               -- 0xa0
     [161]   = "ERROR Segment",                  -- 0xa1
-    [224]   = "RESPONSE_ACK Segment",           -- 0xe0
-    [225]   = "ERROR_ACK Segment"               -- 0xe1
+    [224]   = "RESPONSE ACK Segment",           -- 0xe0
+    [225]   = "ERROR ACK Segment"               -- 0xe1
 }
 local ret_codes = {
     [0]     = "E_OK",
@@ -124,6 +124,8 @@ function p_someip.dissector(buf,pinfo,root)
         type:append_text(" (" .. msg_types[buf(14,1):uint()] ..")")
     end
 
+    pinfo.cols.info = msg_types[buf(14,1):uint()]
+
     -- Return Code
     local rcode = subtree:add(f_rc,buf(15,1))
     if ret_codes[buf(15,1):uint()] ~= nil then
@@ -138,17 +140,17 @@ function p_someip.dissector(buf,pinfo,root)
         local more_seg = subtree:add(f_more_seg,buf(19,1))
         if band(buf(19,1):uint(),0x01) == 0 then
             more_seg:append_text(" (Last Segment)")
-            pinfo.cols.info = "TP Segment Offset=" .. tp_offset .. " More=False"
+            pinfo.cols.info = msg_types[buf(14,1):uint()] .. " Offset=" .. tp_offset .. " More=False"
         else
             more_seg:append_text(" (Another segment follows)")
-            pinfo.cols.info = "TP Segment Offset=" .. tp_offset .. " More=True"
+            pinfo.cols.info = msg_types[buf(14,1):uint()] .. " Offset=" .. tp_offset .. " More=True"
         end
     end
 
     -- SD payload --
     --
-    if (buf(0,4):uint() == 0xffff8100) and (buf:len() > SOMEIP_SD_OFFSET)  then
-        Dissector.get("sd"):call(buf(SOMEIP_SD_OFFSET):tvb(),pinfo,root)
+    if (buf(0,4):uint() == 0xffff8100) and (buf:len() > SOMEIP_LENGTH)  then
+        Dissector.get("sd"):call(buf(SOMEIP_LENGTH):tvb(),pinfo,root)
     elseif (buf:len() > SOMEIP_LENGTH) then
         Dissector.get("data"):call(buf(SOMEIP_LENGTH):tvb(),pinfo,root)
     end
@@ -167,4 +169,3 @@ function p_someip.init()
         tcp_dissector_table:add(port,p_someip)
     end
 end
-
