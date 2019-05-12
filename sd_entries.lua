@@ -21,10 +21,16 @@ local f_e_cnt       = ProtoField.uint8("sd.e.cnt","Counter",base.DEC,nil,0x0f)
 local f_e_egrp_id   = ProtoField.uint8("sd.e.egrp_id","EventGroup_ID",base.HEX)
 
 local e_types = {
-    [0] = "FIND_SERVICE",   -- 0x00
-    [1] = "OFFER_SERVICE",  -- 0x01
+    [0] = "FIND SERVICE",   -- 0x00
+    [1] = "OFFER SERVICE",  -- 0x01
     [6] = "SUBSCRIBE",      -- 0x06
-    [7] = "SUBSCRIBE_ACK"   -- 0x07
+    [7] = "SUBSCRIBE ACK"   -- 0x07
+}
+
+local e_negative_types = {
+    [1] = "STOP OFFER SERVICE",  -- 0x01
+    [6] = "STOP SUBSCRIBE",      -- 0x06
+    [7] = "SUBSCRIBE NACK"   -- 0x07
 }
 
 p_sd_ents.fields = {f_e_type,f_e_o1_i,f_e_o2_i,f_e_o1_n,f_e_o2_n,f_e_srv_id,f_e_inst_id,f_e_v_major,f_e_ttl,f_e_v_minor,f_e_reserved,f_e_init_req,f_e_reserved2,f_e_cnt,f_e_egrp_id}
@@ -38,10 +44,21 @@ function p_sd_ents.dissector(buf,pinfo,root)
 
     -- parse entries  (NOTE : some extra variables to easen understanding)
     local e_len_parsed = 0
+    local info_col = ""
     while e_len_parsed < e_len do
-        local i_parse = parse_entries(root,buf(offset,(e_len-e_len_parsed)))
+        local i_parse, e_type_u8, ttl  = parse_entries(root,buf(offset,(e_len - e_len_parsed)))
         e_len_parsed = e_len_parsed + i_parse
+        if (ttl ~= 0) then
+            info_col = info_col .. e_types[e_type_u8] .. ", "
+        else
+            info_col = info_col .. e_negative_types[e_type_u8] .. ", "
         offset = offset + i_parse
+        end
+    end
+
+    if (info_col ~= "") then
+        -- Replace info column
+        pinfo.cols.info = info_col:sub(0, -3)
     end
 end
 
@@ -96,6 +113,7 @@ function parse_entries(subtree,buf)
     offset = offset + 1 
     -- TTL
     e_subtree:add(f_e_ttl,buf(offset,3))
+    local ttl = buf(offset,3):uint()
     offset = offset + 3 
 
     -- SERVICE / EVENTGROUP entries
@@ -121,5 +139,5 @@ function parse_entries(subtree,buf)
         offset = offset + 2
     end
 
-    return(offset)
+    return offset, type_u8, ttl
 end
