@@ -10,7 +10,7 @@ local tohex = bit.tohex
 -- SOME/IP protocol
 local SOMEIP_LENGTH = 16
 
-p_someip = Proto("someip","SOME/IP")
+p_someip = Proto("someip","Scalable service-Oriented MiddlewarE over IP")
 
 local f_msg_id      = ProtoField.uint32("someip.messageid","MessageID",base.HEX)
 local f_len         = ProtoField.uint32("someip.length","Length",base.HEX)
@@ -97,7 +97,7 @@ end
 
 -- dissection function
 function p_someip.dissector(buf,pinfo,root)
-    pinfo.cols.protocol = p_someip.name
+    pinfo.cols.protocol = "SOME/IP"
 
     -- create subtree
     --

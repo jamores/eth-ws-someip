@@ -7,8 +7,8 @@ local band,bor = bit.band,bit.bor
 local lshift, rshift = bit.lshift,bit.rshift
 local tohex = bit.tohex
 
--- SD protocol
-p_sd = Proto("sd","SD")
+-- SOME/IP-SD protocol
+p_sd = Proto("sd","Scalable service-Oriented MiddlewarE over IP - Service Discovery")
 
 local f_flags           = ProtoField.uint8("sd.flags","Flags",base.HEX)
 local f_flags_reboot    = ProtoField.bool("sd.flags.reboot", "Reboot Flag")
@@ -24,7 +24,7 @@ local f_opts     = ProtoField.bytes("sd.opt","OptionsArray")
 p_sd.fields = {f_flags,f_flags_reboot,f_flags_unicast,f_flags_init_data,f_res,f_ents_len,f_ents,f_opts_len,f_opts}
 
 function p_sd.dissector(buf,pinfo,root)
-    pinfo.cols.protocol = "SOME-IP/SD"
+    pinfo.cols.protocol = "SOME/IP-SD"
 
     -- create subtree
     local subtree = root:add(p_sd,buf(0))
@@ -39,7 +39,7 @@ function p_sd.dissector(buf,pinfo,root)
     flags_tree:add(f_flags_unicast,buf(0,1):bitfield(1,1))
     flags_tree:add(f_flags_init_data,buf(0,1):bitfield(2,1))
 
-    offset = offset+1
+    offset = offset + 1
 
     -- Reserved
     subtree:add(f_res,buf(offset,3))
@@ -48,7 +48,7 @@ function p_sd.dissector(buf,pinfo,root)
     -- Entries length
     local e_len = buf(offset,4):uint()
     subtree:add(f_ents_len,buf(offset,4))
-    offset = offset+4
+    offset = offset + 4
     -- Entries
     --e_tree = subtree:add(f_ents,buf(offset,e_len))
     e_tree = subtree:add("EntriesArray")
@@ -58,7 +58,7 @@ function p_sd.dissector(buf,pinfo,root)
     -- Options length
     local o_len = buf(offset,4):uint()
     subtree:add(f_opts_len,buf(offset,4))
-    offset = offset+4
+    offset = offset + 4
     -- Options
     --o_tree = subtree:add(f_ents,buf(offset,o_len))
     o_tree = subtree:add("OptionsArray")
