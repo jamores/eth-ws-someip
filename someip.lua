@@ -8,9 +8,9 @@ local lshift, rshift = bit.lshift,bit.rshift
 local tohex = bit.tohex
 
 -- SOME/IP protocol
-local SOMEIP_LENGTH = 16
+local SOMEIP_HDR_LENGTH = 16
 
-p_someip = Proto("someip","SOME/IP")
+p_someip = Proto("someip","Scalable service-Oriented MiddlewarE over IP")
 
 local f_msg_id      = ProtoField.uint32("someip.messageid","MessageID",base.HEX)
 local f_len         = ProtoField.uint32("someip.length","Length",base.HEX)
@@ -70,7 +70,7 @@ p_someip.fields = {f_msg_id,f_len,f_req_id,f_pv,f_iv,f_mt,f_rc, f_offset, f_rese
 p_someip.prefs["udp_port"] = Pref.uint("UDP Port",30490,"UDP Port for SOME/IP")
 
 -- fields functions
-function field_msgid(subtree,buf)
+local function field_msgid(subtree,buf)
     msg_id = subtree:add(f_msg_id,buf(0,4))
     local msg_id_uint = buf(0,4):uint()
 
@@ -85,7 +85,8 @@ function field_msgid(subtree,buf)
         msg_id:add("event_id : "..tohex(band(msg_id_uint,0x7fff),4))
     end
 end
-function field_reqid(subtree,buf)
+
+local function field_reqid(subtree,buf)
     req_id = subtree:add(f_req_id,buf(8,4))
     local req_id_uint = buf(8,4):uint()
 
@@ -95,9 +96,10 @@ function field_reqid(subtree,buf)
     req_id:add("session_id : "..tohex(req_id_uint,4))
 end
 
--- dissection function
-function p_someip.dissector(buf,pinfo,root)
-    pinfo.cols.protocol = p_someip.name
+-- PDU dissection function
+local function someip_pdu_dissect(buf,pinfo,root)
+
+    pinfo.cols.protocol = "SOME/IP"
 
     -- create subtree
     --
@@ -119,9 +121,9 @@ function p_someip.dissector(buf,pinfo,root)
     subtree:add(f_iv,buf(13,1))
 
     -- Message type
-    local type = subtree:add(f_mt,buf(14,1))
+    local m_type = subtree:add(f_mt,buf(14,1))
     if msg_types[buf(14,1):uint()] ~= nil then
-        type:append_text(" (" .. msg_types[buf(14,1):uint()] ..")")
+        m_type:append_text(" (" .. msg_types[buf(14,1):uint()] ..")")
     end
 
     pinfo.cols.info = msg_types[buf(14,1):uint()]
@@ -149,12 +151,26 @@ function p_someip.dissector(buf,pinfo,root)
 
     -- SD payload --
     --
-    if (buf(0,4):uint() == 0xffff8100) and (buf:len() > SOMEIP_LENGTH)  then
-        Dissector.get("sd"):call(buf(SOMEIP_LENGTH):tvb(),pinfo,root)
-    elseif (buf:len() > SOMEIP_LENGTH) then
-        Dissector.get("data"):call(buf(SOMEIP_LENGTH):tvb(),pinfo,root)
+    if (buf(0,4):uint() == 0xffff8100) and (buf:len() > SOMEIP_HDR_LENGTH)  then
+        Dissector.get("sd"):call(buf(SOMEIP_HDR_LENGTH):tvb(),pinfo,root)
+    elseif (buf:len() > SOMEIP_HDR_LENGTH) then
+        Dissector.get("data"):call(buf(SOMEIP_HDR_LENGTH):tvb(),pinfo,root)
     end
 
+end
+
+local function get_someip_length(buf, pktinfo, offset)
+    return buf(offset + 4,4):uint()
+end
+
+-- main dissection function
+function p_someip.dissector(buf,pinfo,root)
+    -- if above TCP we need to assemble the PDU
+    if pinfo.port_type == 2 then
+        dissect_tcp_pdus(buf,root, SOMEIP_HDR_LENGTH, get_someip_length, someip_pdu_dissect)
+    else
+        someip_pdu_dissect(buf,pinfo,root)
+    end
 end
 
 -- initialization routine
