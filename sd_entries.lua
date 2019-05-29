@@ -52,8 +52,8 @@ function p_sd_ents.dissector(buf,pinfo,root)
             info_col = info_col .. e_types[e_type_u8] .. ", "
         else
             info_col = info_col .. e_negative_types[e_type_u8] .. ", "
-        offset = offset + i_parse
         end
+        offset = offset + i_parse
     end
 
     if (info_col ~= "") then
