@@ -96,11 +96,14 @@ local function field_reqid(subtree,buf)
     req_id:add("session_id : "..tohex(req_id_uint,4))
 end
 
--- PDU dissection function
-local function someip_pdu_dissect(buf,pinfo,root)
+local function get_someip_length(buf, pktinfo, offset)
+    return buf(offset + 4,4):uint()
+end
 
-    pinfo.cols.protocol = "SOME/IP"
-
+-- Single PDU dissection function (inner function).
+-- Concatenates to the info column instead of replacing it.
+-- Returns whatever is left of the input buffer after this PDU.
+local function someip_single_pdu_dissect(buf,pinfo,root)
     -- create subtree
     --
     subtree = root:add(p_someip,buf(0))
@@ -126,7 +129,12 @@ local function someip_pdu_dissect(buf,pinfo,root)
         m_type:append_text(" (" .. msg_types[buf(14,1):uint()] ..")")
     end
 
-    pinfo.cols.info = msg_types[buf(14,1):uint()]
+    -- Concatenate the info of someip messages sent in same datagram
+    if pinfo.cols.info then
+        pinfo.cols.info = tostring(pinfo.cols.info) .. ", " .. msg_types[buf(14,1):uint()]
+    else
+        pinfo.cols.info = msg_types[buf(14,1):uint()]
+    end
 
     -- Return Code
     local rcode = subtree:add(f_rc,buf(15,1))
@@ -154,13 +162,20 @@ local function someip_pdu_dissect(buf,pinfo,root)
     if (buf(0,4):uint() == 0xffff8100) and (buf:len() > SOMEIP_HDR_LENGTH)  then
         Dissector.get("sd"):call(buf(SOMEIP_HDR_LENGTH):tvb(),pinfo,root)
     elseif (buf:len() > SOMEIP_HDR_LENGTH) then
-        Dissector.get("data"):call(buf(SOMEIP_HDR_LENGTH):tvb(),pinfo,root)
+        Dissector.get("data"):call(buf(SOMEIP_HDR_LENGTH,-SOMEIP_HDR_LENGTH+8+get_someip_length(buf,pinfo,0)):tvb(),pinfo,root)
     end
 
+    -- Return next SOMEIP packet --
+    return buf(8+get_someip_length(buf,pinfo,0)):tvb()
 end
 
-local function get_someip_length(buf, pktinfo, offset)
-    return buf(offset + 4,4):uint()
+-- PDU dissection function
+local function someip_pdu_dissect(buf,pinfo,root)
+    pinfo.cols.protocol = "SOME/IP"
+    pinfo.cols.info = ""
+    while buf:len() >= SOMEIP_HDR_LENGTH do
+        buf = someip_single_pdu_dissect(buf,pinfo,root)
+    end
 end
 
 -- main dissection function
