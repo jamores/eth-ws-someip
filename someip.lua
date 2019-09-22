@@ -124,9 +124,8 @@ local function someip_pdu_dissect(buf,pinfo,root)
     local m_type = subtree:add(f_mt,buf(14,1))
     if msg_types[buf(14,1):uint()] ~= nil then
         m_type:append_text(" (" .. msg_types[buf(14,1):uint()] ..")")
+        pinfo.cols.info = msg_types[buf(14,1):uint()]
     end
-
-    pinfo.cols.info = msg_types[buf(14,1):uint()]
 
     -- Return Code
     local rcode = subtree:add(f_rc,buf(15,1))
@@ -142,10 +141,18 @@ local function someip_pdu_dissect(buf,pinfo,root)
         local more_seg = subtree:add(f_more_seg,buf(19,1))
         if band(buf(19,1):uint(),0x01) == 0 then
             more_seg:append_text(" (Last Segment)")
-            pinfo.cols.info = msg_types[buf(14,1):uint()] .. " Offset=" .. tp_offset .. " More=False"
+            if msg_types[buf(14,1):uint()] ~= nil then
+                pinfo.cols.info = msg_types[buf(14,1):uint()] .. " Offset=" .. tp_offset .. " More=False"
+            else
+                pinfo.cols.info = " Offset=" .. tp_offset .. " More=False"
+            end
         else
             more_seg:append_text(" (Another segment follows)")
-            pinfo.cols.info = msg_types[buf(14,1):uint()] .. " Offset=" .. tp_offset .. " More=True"
+            if msg_types[buf(14,1):uint()] ~= nil then
+                pinfo.cols.info = msg_types[buf(14,1):uint()] .. " Offset=" .. tp_offset .. " More=True"
+            else
+                pinfo.cols.info = " Offset=" .. tp_offset .. " More=True"
+            end
         end
     end
 
