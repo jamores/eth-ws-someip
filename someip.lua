@@ -96,10 +96,21 @@ local function field_reqid(subtree,buf)
     req_id:add("session_id : "..tohex(req_id_uint,4))
 end
 
+local function get_someip_length(buf, pktinfo, offset)
+    return buf(offset + 4,4):uint() + 8
+end
+
 -- PDU dissection function
 local function someip_pdu_dissect(buf,pinfo,root)
+    local m_type_num = buf(14,1):uint()
+    local prev_proto = tostring(pinfo.cols.protocol)
 
     pinfo.cols.protocol = "SOME/IP"
+
+    -- Delete irrelevant info from previous protocol
+    if prev_proto ~= tostring(pinfo.cols.protocol) then
+        pinfo.cols.info = ""
+    end
 
     -- create subtree
     --
@@ -122,11 +133,15 @@ local function someip_pdu_dissect(buf,pinfo,root)
 
     -- Message type
     local m_type = subtree:add(f_mt,buf(14,1))
-    if msg_types[buf(14,1):uint()] ~= nil then
-        m_type:append_text(" (" .. msg_types[buf(14,1):uint()] ..")")
+    if msg_types[m_type_num] ~= nil then
+        m_type:append_text(" (" .. msg_types[m_type_num] ..")")
+        -- Concatenate the info of someip messages sent in same datagram
+        if tostring(pinfo.cols.info) ~= "" then
+            pinfo.cols.info = tostring(pinfo.cols.info) .. ", " .. msg_types[m_type_num]
+        else
+            pinfo.cols.info = msg_types[m_type_num]
+        end
     end
-
-    pinfo.cols.info = msg_types[buf(14,1):uint()]
 
     -- Return Code
     local rcode = subtree:add(f_rc,buf(15,1))
@@ -135,17 +150,18 @@ local function someip_pdu_dissect(buf,pinfo,root)
     end
 
     -- SOME/IP TP
-    if band(buf(14,1):uint(),0x20) ~= 0 then
+    if band(m_type_num,0x20) ~= 0 then
         subtree:add(f_offset,buf(16,4))
         local tp_offset = band(buf(16,4):uint(), 0xfffffff0)
+        pinfo.cols.info = tostring(pinfo.cols.info) .. " Offset=" .. tp_offset
         subtree:add(f_reserved,buf(19,1))
         local more_seg = subtree:add(f_more_seg,buf(19,1))
         if band(buf(19,1):uint(),0x01) == 0 then
             more_seg:append_text(" (Last Segment)")
-            pinfo.cols.info = msg_types[buf(14,1):uint()] .. " Offset=" .. tp_offset .. " More=False"
+            pinfo.cols.info = tostring(pinfo.cols.info) .. " More=False"
         else
             more_seg:append_text(" (Another segment follows)")
-            pinfo.cols.info = msg_types[buf(14,1):uint()] .. " Offset=" .. tp_offset .. " More=True"
+            pinfo.cols.info = tostring(pinfo.cols.info) .. " More=True"
         end
     end
 
@@ -154,13 +170,15 @@ local function someip_pdu_dissect(buf,pinfo,root)
     if (buf(0,4):uint() == 0xffff8100) and (buf:len() > SOMEIP_HDR_LENGTH)  then
         Dissector.get("sd"):call(buf(SOMEIP_HDR_LENGTH):tvb(),pinfo,root)
     elseif (buf:len() > SOMEIP_HDR_LENGTH) then
-        Dissector.get("data"):call(buf(SOMEIP_HDR_LENGTH):tvb(),pinfo,root)
+        Dissector.get("data"):call(buf(SOMEIP_HDR_LENGTH, get_someip_length(buf,pinfo,0) - SOMEIP_HDR_LENGTH):tvb(),pinfo,root)
     end
 
-end
-
-local function get_someip_length(buf, pktinfo, offset)
-    return buf(offset + 4,4):uint()
+    -- Dissect next SOMEIP packet --
+    local end_of_current_packet = get_someip_length(buf,pinfo,0)
+    local next_packet_length = buf:len() - end_of_current_packet
+    if next_packet_length > 0 then
+        Dissector.get("someip"):call(buf(end_of_current_packet):tvb(),pinfo,root)
+    end
 end
 
 -- main dissection function
