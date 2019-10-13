@@ -169,7 +169,7 @@ local function someip_pdu_dissect(buf,pinfo,root)
     --
     if (buf(0,4):uint() == 0xffff8100) and (buf:len() > SOMEIP_HDR_LENGTH)  then
         Dissector.get("sd"):call(buf(SOMEIP_HDR_LENGTH):tvb(),pinfo,root)
-    elseif (buf:len() > SOMEIP_HDR_LENGTH) then
+    elseif (get_someip_length(buf,pinfo,0) > SOMEIP_HDR_LENGTH) then
         Dissector.get("data"):call(buf(SOMEIP_HDR_LENGTH, get_someip_length(buf,pinfo,0) - SOMEIP_HDR_LENGTH):tvb(),pinfo,root)
     end
 
