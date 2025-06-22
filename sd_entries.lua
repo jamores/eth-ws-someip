@@ -18,7 +18,7 @@ local f_e_reserved  = ProtoField.uint8("sd.e.reserved","Reserved",base.HEX)
 local f_e_init_req  = ProtoField.bool("sd.e.init_req","Initial Data Requested Flag")
 local f_e_reserved2 = ProtoField.uint8("sd.e.reserved2","Reserved2",base.HEX,nil,0x07)
 local f_e_cnt       = ProtoField.uint8("sd.e.cnt","Counter",base.DEC,nil,0x0f)
-local f_e_egrp_id   = ProtoField.uint8("sd.e.egrp_id","EventGroup_ID",base.HEX)
+local f_e_egrp_id   = ProtoField.uint16("sd.e.egrp_id","EventGroup_ID",base.HEX)
 
 local e_types = {
     [0] = "FIND SERVICE",   -- 0x00
